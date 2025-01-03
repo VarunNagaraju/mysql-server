@@ -290,12 +290,14 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
   if (exceeds_capacity || !can_use_writesets) {
     m_writeset_history_start = sequence_number;
     m_writeset_history.clear();
+    m_writeset_history.reserve(m_opt_max_history_size);
   }
 }
 
 void Writeset_trx_dependency_tracker::rotate(int64 start) {
   m_writeset_history_start = start;
   m_writeset_history.clear();
+  m_writeset_history.reserve(m_opt_max_history_size);
 }
 
 /**
