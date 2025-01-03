@@ -250,25 +250,27 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
      using its information for current transaction.
     */
     exceeds_capacity =
-        m_writeset_history.size() + writeset->size() > m_opt_max_history_size;
+        m_writeset_history->size() + writeset->size() > m_opt_max_history_size;
 
     /*
      Compute the greatest sequence_number among all conflicts and add the
      transaction's row hashes to the history.
     */
     int64 last_parent = m_writeset_history_start;
-    for (std::vector<uint64>::iterator it = writeset->begin();
-         it != writeset->end(); ++it) {
-      Writeset_history::iterator hst = m_writeset_history.find(*it);
-      if (hst != m_writeset_history.end()) {
-        if (hst->second > last_parent && hst->second < sequence_number)
-          last_parent = hst->second;
+    if (m_writeset_history.has_value()) {
+      for (std::vector<uint64>::iterator it = writeset->begin();
+          it != writeset->end(); ++it) {
+        Writeset_history::iterator hst = m_writeset_history->find(*it);
+        if (hst != m_writeset_history->end()) {
+          if (hst->second > last_parent && hst->second < sequence_number)
+            last_parent = hst->second;
 
-        hst->second = sequence_number;
-      } else {
-        if (!exceeds_capacity)
-          m_writeset_history.insert(
-              std::pair<uint64, int64>(*it, sequence_number));
+          hst->second = sequence_number;
+        } else {
+          if (!exceeds_capacity)
+            m_writeset_history->insert(
+                std::pair<uint64, int64>(*it, sequence_number));
+        }
       }
     }
 
@@ -289,15 +291,19 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
 
   if (exceeds_capacity || !can_use_writesets) {
     m_writeset_history_start = sequence_number;
-    m_writeset_history.clear();
-    m_writeset_history.reserve(m_opt_max_history_size);
+    if (m_writeset_history.has_value()) {
+      m_writeset_history->clear();
+      m_writeset_history->reserve(m_opt_max_history_size);
+    }
   }
 }
 
 void Writeset_trx_dependency_tracker::rotate(int64 start) {
   m_writeset_history_start = start;
-  m_writeset_history.clear();
-  m_writeset_history.reserve(m_opt_max_history_size);
+  if (m_writeset_history.has_value()) {
+    m_writeset_history->clear();
+    m_writeset_history->reserve(m_opt_max_history_size);
+  }
 }
 
 /**
